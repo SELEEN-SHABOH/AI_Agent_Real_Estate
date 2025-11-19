@@ -59,6 +59,9 @@ class MessageOut(BaseModel):
     text: str
     created_at: datetime
 
+class ConversationRename(BaseModel):
+    title: str
+
 # ------------------------------
 # Helper Functions
 # ------------------------------
@@ -111,7 +114,30 @@ def get_conversation_messages(conv_id: int, db: Session = Depends(get_db)):
     return db.query(Message).filter(
         Message.conversation_id == conv_id
     ).order_by(Message.created_at.asc()).all()
+    
 
+@app.delete("/conversations/{conv_id}")
+def delete_conversation(conv_id: int, db: Session = Depends(get_db)):
+    conv = db.query(Conversation).filter(Conversation.id == conv_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    db.delete(conv)
+    db.commit()
+    return {"status": "deleted"}
+
+
+@app.patch("/conversations/{conv_id}")
+def rename_conversation(conv_id: int, data: ConversationRename, db: Session = Depends(get_db)):
+    conv = db.query(Conversation).filter(Conversation.id == conv_id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    conv.title = data.title
+    conv.updated_at = datetime.utcnow()
+    db.commit()
+    return {"status": "updated"}
+    
 
 # MAIN endpoint
 @app.post("/ask/")
@@ -176,3 +202,4 @@ async def ask_real_estate_agent(q: Question, db: Session = Depends(get_db)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
